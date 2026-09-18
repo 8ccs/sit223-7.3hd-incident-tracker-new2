@@ -451,9 +451,15 @@ be checked off by hand before submission.
 - Marker/Unit Chair access -- see section 12; the repository is public
   and anonymous read access is verified.
 
-**Tested Jenkins build:** [PENDING -- filled in after the pipeline runs
-against this repository's current commit; see the answer sheet
-screenshot for the Stage View evidence]
+**Tested Jenkins build:** #21, commit `174be0e`, version
+`1.0.0+build.21.174be0e` -- all 7 stages passed (78/78 tests, 98%
+coverage, pylint 9.96/10, security gate passed with 0 findings and 9/9
+dependencies clean, 5/5 smoke tests on both staging and production, and
+the full Monitoring alert path -- firing and resolved -- verified
+within this same run). See the answer sheet for the Stage View
+screenshot. Later documentation-only commits (after this one) do not
+change the tested application or pipeline code, so this citation
+remains accurate even if `git log` shows a newer HEAD.
 
 **Pending -- needs your input, not something an assistant can complete:**
 1. **A real Slack webhook URL.** `monitoring/secrets/slack_webhook_url.txt`

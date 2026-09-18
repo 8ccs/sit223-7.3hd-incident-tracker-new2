@@ -33,3 +33,6 @@ monitoring/secrets/*
 Thumbs.db
 .vscode/
 .idea/
+
+# Personal recording script (not part of the submitted deliverable)
+video-script.md
