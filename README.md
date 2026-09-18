@@ -179,14 +179,24 @@ Check they are up:
   which only `slack_configs` builds correctly (see
   https://prometheus.io/docs/alerting/latest/configuration/#slack_config).
 
-The webhook URL is a secret and is **never committed**. To connect a
-real Slack channel you control:
+**Status: configured and verified.** A real Slack Incoming Webhook is
+connected to the `#incident-tracker-alerts` channel. A controlled
+incident-and-recovery run confirmed both a firing and a resolved
+message actually arrived in that channel (not just the local inbox):
+Alertmanager's own `/metrics` endpoint recorded exactly 2
+`alertmanager_notifications_total{integration="slack"}` sends with 0
+new failures immediately after the webhook was configured, and the two
+messages (red "firing" colour, then green "resolved" colour) were
+confirmed visible in the channel directly. The webhook URL itself was
+never displayed, logged, or committed at any point in that process.
+
+The webhook URL is a secret and is **never committed**. To connect (or
+reconnect, e.g. on a different machine) a real Slack channel you
+control:
 
 1. Create a Slack **Incoming Webhook** for a channel you have permission
    to post to: https://api.slack.com/messaging/webhooks (needs a Slack
-   workspace; if you don't have one to authorize this in, skip this
-   section -- everything else in the pipeline works without it, see
-   section 13 "Handover" below).
+   workspace).
 2. Run:
    ```powershell
    .\scripts\configure_notifications.ps1 -SlackWebhookUrl "https://hooks.slack.com/services/T000/B000/XXXX"
@@ -200,12 +210,13 @@ real Slack channel you control:
    the local inbox, on purpose -- see the comment at the top of that
    file).
 
-Until step 2 is done, `monitoring/secrets/slack_webhook_url.txt` holds
-an obviously-fake placeholder URL. Alertmanager treats every configured
-integration in a receiver independently, so the Slack attempt fails
-(logged in Alertmanager's own console output; check
+While `monitoring/secrets/slack_webhook_url.txt` holds a placeholder
+(e.g. on a fresh clone before step 2), Alertmanager treats every
+configured integration in a receiver independently, so the Slack
+attempt fails (logged in Alertmanager's own console output; check
 `C:\devops-demo\logs\alertmanager.err.log`) without affecting the local
-inbox delivery at all.
+inbox delivery at all -- that is what made it safe to develop and test
+this pipeline before a real channel was connected.
 
 ## 6. Jenkins setup
 
@@ -446,8 +457,12 @@ be checked off by hand before submission.
   final result still reported FAILED).
 - Alertmanager is wired to a real Slack receiver (`slack_configs`, not a
   generic webhook), alongside the local inbox the automated Jenkins
-  check always relies on -- see section 5.1. Real delivery to Slack
-  itself is still pending, see item 1 below.
+  check always relies on -- see section 5.1. Real delivery is now
+  verified: a controlled incident-and-recovery run produced a firing
+  and a resolved message that both actually arrived in the
+  `#incident-tracker-alerts` Slack channel, confirmed both via
+  Alertmanager's own notification-count metrics and by checking the
+  channel directly.
 - Marker/Unit Chair access -- see section 12; the repository is public
   and anonymous read access is verified.
 
@@ -462,21 +477,14 @@ change the tested application or pipeline code, so this citation
 remains accurate even if `git log` shows a newer HEAD.
 
 **Pending -- needs your input, not something an assistant can complete:**
-1. **A real Slack webhook URL.** `monitoring/secrets/slack_webhook_url.txt`
-   still holds a placeholder, so Slack delivery itself is unverified
-   (Alertmanager reaching Slack's API with a correctly formatted, but
-   rejected, request has been confirmed -- see section 5.1). Run
-   `scripts\configure_notifications.ps1 -SlackWebhookUrl "..."` with your
-   own webhook, then `scripts\verify_alert_path.py`, and check the
-   channel.
-2. **Recording and uploading the demo video**, following your own
+1. **Recording and uploading the demo video**, following your own
    recording plan. Once you have a file: check its duration is under
    10:00 and audio is audible throughout, upload it (e.g. YouTube
    unlisted), and open the link in a private/incognito window to
    confirm it plays without your personal login.
-3. **Inserting the real video link** into answer-sheet item 1 (currently
+2. **Inserting the real video link** into answer-sheet item 1 (currently
    `[PENDING - VIDEO LINK]`), then re-exporting the DOCX to PDF.
 
-Until items 1-3 above are done, this package is not submission-ready,
-even though the pipeline and codebase themselves are complete and
-verified.
+Until items 1-2 above are done, this package is not submission-ready,
+even though the pipeline, codebase, and real Slack notifications are
+all complete and verified.
