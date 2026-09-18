@@ -1,0 +1,56 @@
+# Alertmanager configuration.
+# Reference: https://prometheus.io/docs/alerting/latest/configuration/
+#
+# This receiver sends every notification to BOTH destinations below:
+#
+#   1. webhook_configs -- the local alert inbox (monitoring/webhook_receiver.py).
+#      A documented, local, offline stand-in for a real team channel.
+#      scripts/verify_alert_path.py's automated Jenkins Monitoring-stage
+#      check reads from this one, so it stays configured even once a
+#      real channel is added below -- it is what proves, on every build,
+#      that a notification was actually delivered.
+#
+#   2. slack_configs -- Slack's own native Alertmanager receiver type.
+#      This is NOT a generic webhook_configs entry pointed at a Slack
+#      URL: Slack's Incoming Webhooks expect Slack's own JSON payload
+#      shape (e.g. {"text": "...", "blocks": [...]}), which is exactly
+#      what slack_configs builds. A generic webhook_configs entry would
+#      send Alertmanager's own webhook payload shape instead
+#      ({"version":"4","groupKey":...,"alerts":[...]}), which Slack does
+#      not understand.
+#
+#      The webhook URL itself is a secret and is never committed here.
+#      api_url_file (the per-receiver field; slack_api_url_file is the
+#      GLOBAL-only equivalent) points at a local, gitignored file
+#      containing just the URL; see
+#      monitoring/secrets/slack_webhook_url.example and README.md
+#      "Credential setup" for exactly how to provide it. Alertmanager
+#      re-reads *_file fields on every send, so updating that file takes
+#      effect immediately -- no restart needed.
+#
+#      Until that file holds a real webhook URL, Slack delivery will
+#      fail (logged in Alertmanager's own output) while the local inbox
+#      above keeps working independently -- Alertmanager treats each
+#      configured integration in a receiver as independent, so one
+#      failing does not block or fail the others.
+global:
+  resolve_timeout: 30s
+
+route:
+  receiver: "team-notifications"
+  group_by: ["alertname"]
+  group_wait: 5s
+  group_interval: 10s
+  repeat_interval: 1h
+
+receivers:
+  - name: "team-notifications"
+    webhook_configs:
+      - url: "http://localhost:9099/webhook"
+        send_resolved: true
+    slack_configs:
+      - api_url_file: "secrets/slack_webhook_url.txt"
+        channel: "#incident-tracker-alerts"
+        send_resolved: true
+        title: '{{ .CommonAnnotations.summary }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ "\n" }}{{ end }}'

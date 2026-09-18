@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Incident Tracker</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <h1>Incident Tracker</h1>
+    <p class="meta">version {{ version }} &middot; environment {{ environment }}</p>
+  </header>
+
+  <form method="get" action="/" class="filters">
+    <input type="text" name="q" placeholder="Search title/description" value="{{ query }}">
+    <select name="status">
+      <option value="">All statuses</option>
+      {% for s in statuses %}
+        <option value="{{ s }}" {% if s == selected_status %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+    <select name="severity">
+      <option value="">All severities</option>
+      {% for sv in severities %}
+        <option value="{{ sv }}" {% if sv == selected_severity %}selected{% endif %}>{{ sv }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Filter</button>
+  </form>
+
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Title</th><th>Severity</th><th>Status</th><th>Created</th></tr>
+    </thead>
+    <tbody>
+      {% for i in incidents %}
+      <tr class="severity-{{ i.severity }}">
+        <td>{{ i.id }}</td>
+        <td>{{ i.title }}</td>
+        <td>{{ i.severity }}</td>
+        <td>{{ i.status }}</td>
+        <td>{{ i.created_at }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">No incidents match this filter.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <footer>
+    <a href="/api/incidents">API: /api/incidents</a> &middot;
+    <a href="/health">/health</a> &middot;
+    <a href="/metrics">/metrics</a>
+  </footer>
+</body>
+</html>

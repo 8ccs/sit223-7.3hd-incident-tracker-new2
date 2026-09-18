@@ -1,0 +1,32 @@
+# Prometheus configuration for the Monitoring stage.
+# Reference: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+global:
+  scrape_interval: 5s       # short interval so the demo alert fires quickly
+  evaluation_interval: 5s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["localhost:9093"]
+
+rule_files:
+  - "alert_rules.yml"
+
+scrape_configs:
+  - job_name: "incident-tracker-production"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["localhost:5000"]
+        labels:
+          environment: production
+
+  - job_name: "incident-tracker-staging"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["localhost:5001"]
+        labels:
+          environment: staging
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

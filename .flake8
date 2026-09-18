@@ -1,0 +1,6 @@
+[flake8]
+max-line-length = 100
+max-complexity = 10
+exclude = .git,__pycache__,.venv,venv,data,evidence,.pytest_cache
+# E203/W503 conflict with black-style formatting choices; not a maintainability issue.
+extend-ignore = E203,W503

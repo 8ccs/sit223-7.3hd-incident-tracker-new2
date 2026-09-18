@@ -1,0 +1,27 @@
+[MASTER]
+ignore=data,evidence,.venv,venv
+ignore-patterns=test_.*.py
+
+[MESSAGES CONTROL]
+# Justified exclusions:
+# - missing-module-docstring / missing-function-docstring: this is a small
+#   teaching project; names + short comments explain intent, full docstrings
+#   on every helper would be noise, not maintainability.
+# - too-few-public-methods: applies to small validation/data classes by design.
+disable=missing-module-docstring,
+        missing-function-docstring,
+        too-few-public-methods
+
+[DESIGN]
+max-args=8
+max-branches=12
+
+[SIMILARITIES]
+# Code-quality duplication gate: flag any block of 6+ near-identical lines.
+min-similarity-lines=6
+ignore-comments=yes
+ignore-docstrings=yes
+ignore-imports=yes
+
+[FORMAT]
+max-line-length=100

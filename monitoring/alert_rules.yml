@@ -1,0 +1,43 @@
+# Alert rules for the Monitoring stage.
+# Reference: https://prometheus.io/docs/alerting/latest/overview/
+#
+# `for:` durations are kept short (15-20s) so the demo video can show a
+# full fire-and-resolve cycle inside a few minutes. A real production
+# deployment would use longer windows (2-5m) to avoid alerting on
+# single-scrape blips; this trade-off is explained in the report.
+groups:
+  - name: incident-tracker-alerts
+    rules:
+      - alert: AppDown
+        expr: up{job="incident-tracker-production"} == 0
+        for: 15s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Incident Tracker production is DOWN"
+          description: "Prometheus has not been able to scrape /metrics on the production target for 15s or more."
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{job="incident-tracker-production", status=~"5.."}[1m]))
+          /
+          sum(rate(http_requests_total{job="incident-tracker-production"}[1m]))
+          > 0.10
+        for: 20s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Incident Tracker production error rate above 10%"
+          description: "More than 10% of requests in the last minute returned a 5xx status."
+
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{job="incident-tracker-production"}[1m])) by (le)
+          ) > 1
+        for: 20s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Incident Tracker production p95 latency above 1s"
+          description: "95th percentile request latency has exceeded 1 second for at least 20s."

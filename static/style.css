@@ -1,0 +1,13 @@
+body { font-family: Arial, sans-serif; margin: 2rem; color: #1a1a1a; background: #fafafa; }
+header h1 { margin-bottom: 0.2rem; }
+.meta { color: #666; font-size: 0.9rem; }
+.filters { margin: 1rem 0; display: flex; gap: 0.5rem; }
+table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+th { background: #2f6f4f; color: white; }
+.severity-critical { background: #ffe5e5; }
+.severity-high { background: #fff2e0; }
+.severity-medium { background: #fffde0; }
+.severity-low { background: #eefaf0; }
+footer { margin-top: 2rem; font-size: 0.85rem; color: #555; }
+footer a { color: #2f6f4f; margin-right: 0.5rem; }
