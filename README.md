@@ -108,7 +108,7 @@ justified equivalent to SonarQube for this project's size -- see the
 From a fresh clone:
 
 ```powershell
-git clone https://github.com/8ccs/sit223-7.3hd-incident-tracker.git incident-tracker
+git clone https://github.com/8ccs/sit223-7.3hd-incident-tracker-new2.git incident-tracker
 cd incident-tracker
 
 python -m venv .venv
@@ -230,7 +230,7 @@ and add an `publishHTML` post step pointing at `reports/test/htmlcov`.
    `Jenkinsfile`.)
 3. Pipeline > Definition: **Pipeline script from SCM**.
    - SCM: Git
-   - Repository URL: `https://github.com/8ccs/sit223-7.3hd-incident-tracker.git`
+   - Repository URL: `https://github.com/8ccs/sit223-7.3hd-incident-tracker-new2.git`
    - Branch: `*/main`
    - Script Path: `Jenkinsfile`
 4. Save.
@@ -298,27 +298,37 @@ python scripts\security_gate.py reports\security
 
 ### 7.1 Security findings
 
-Real output from Bandit and pip-audit against this codebase (Jenkins
-build #19, commit `4323a72`). "Fixed" means the code changed; "Accepted
-with mitigation" means the finding is real but the risk is controlled
-in a different way than removing the pattern, and that mitigation is
-described rather than just switching the check off.
+**The actual gate policy** (`scripts/security_gate.py`), verified
+against the code, not assumed:
+- A Bandit finding blocks the build only if its severity is **HIGH**
+  *and* its confidence is **MEDIUM or HIGH**. Bandit findings below that
+  (including every MEDIUM-severity finding, which is what both checks
+  below are) are reported but do not fail the build on their own.
+- A pip-audit finding blocks the build only if a **fixed version is
+  already available** for that dependency. A known vulnerability with
+  no fix released yet is reported but does not block, since there is
+  nothing actionable to upgrade to.
+- Independently of severity: a report that is missing, unreadable,
+  empty, malformed, or reflects a scan that never actually completed
+  (a Bandit analysis error, zero lines of code analysed, zero
+  dependencies listed) always fails the gate, the same as a missing
+  report. This was a real bug in an earlier version of this gate --
+  such reports used to look identical to "scanned cleanly, found
+  nothing" -- found and fixed during this review, and covered by
+  focused unit tests (`tests/unit/test_security_gate.py`).
 
-| Finding | Severity | Location | Status | Fix / justification |
+**Real findings from this codebase**, and why each is below the
+blocking threshold or already fixed:
+
+| Finding | Bandit severity/confidence | Location | Status | Explanation |
 |---|---|---|---|---|
-| B104: hardcoded bind to all interfaces (`0.0.0.0`) | Medium | app startup config | Fixed | The dev server bound to all network interfaces, which is unnecessary since every environment in this project (dev, staging, production) runs on the same machine. Changed to bind `127.0.0.1` only. |
-| B608: possible SQL injection via string-built query | Medium | `app/models.py`, `list()` query (search/filter) | Fixed | The filter query originally built its `WHERE` clause with string formatting. Rewritten to use fixed SQL text with `?` parameter placeholders for every value; no user input is ever concatenated into the query text. |
-| B608: possible SQL injection via string-built query | Medium | `app/models.py:129`, `update()` | Accepted with mitigation, documented `# nosec B608` | `update()` genuinely needs a dynamic column list, because only the fields the caller sent should be updated. Bandit cannot see that the column *names* in the `SET ...` clause come only from `_UPDATABLE_FIELDS`, a fixed five-name allow-list checked in code (`unknown = set(fields) - self._UPDATABLE_FIELDS`, which raises before the query ever runs if an unrecognised field is present) -- never from raw request data. Every *value* is still sent as a `?` parameter, never concatenated. The suppression comment on that line points here. |
-| pip-audit: dependency vulnerabilities | -- | 9 runtime dependencies (`requirements.txt`) | None found | Zero known CVEs across all 9 runtime dependencies as of this build. |
+| B104: hardcoded bind to all interfaces (`0.0.0.0`) | MEDIUM / MEDIUM (Bandit's own fixed classification for this check -- confirmed in Bandit's source, `bandit/plugins/general_bind_all_interfaces.py`) | app startup config | Fixed | Never reached the gate's HIGH-only blocking threshold, but was still fixed as good practice: binding to all interfaces was unnecessary since every environment in this project runs on the same machine. Changed to bind `127.0.0.1` only. |
+| B608: possible SQL injection via string-built query | MEDIUM / MEDIUM (`bandit/plugins/injection_sql.py`) | `app/models.py`, `list()` query (search/filter) | Fixed | Also below the blocking threshold, fixed anyway: the filter query originally built its `WHERE` clause with string formatting. Rewritten to fixed SQL text with `?` parameter placeholders for every value; no user input is ever concatenated into the query text. |
+| B608: possible SQL injection via string-built query | MEDIUM / MEDIUM | `app/models.py:129`, `update()` | Accepted with mitigation, documented `# nosec B608` | Below the blocking threshold either way, and additionally mitigated rather than left as a bare suppression: `update()` needs a dynamic column list, because only the fields the caller sent should change. Bandit cannot see that the column *names* in the `SET ...` clause come only from `_UPDATABLE_FIELDS`, a fixed five-name allow-list checked in code (`unknown = set(fields) - self._UPDATABLE_FIELDS`, which raises before the query ever runs if an unrecognised field is present) -- never from raw request data. Every *value* is still sent as a `?` parameter, never concatenated. |
+| pip-audit: dependency vulnerabilities | -- | 9 runtime dependencies (`requirements.txt`) | None found | A completed scan of all 9 dependencies found zero known CVEs. This is reported as a genuine clean result, not assumed, because the gate first confirms the scan actually produced a non-empty dependency list before treating an empty findings list as "clean" rather than "skipped". |
 
 Bandit also scans for the common Flask `debug=True` misconfiguration and
-several other checks; none triggered in this codebase. Both scanners run
-as a hard gate in the Security stage (`scripts/security_gate.py`) --
-the build fails on any unresolved finding, not just the two above, and
-also fails if a scan doesn't actually complete (crashes, an empty
-report, or a report from an earlier build), which is a bug in the gate
-itself that was found and fixed during this review; see the Handover
-section for details.
+several other checks; none triggered in this codebase.
 
 ## 8. Deploying both environments and demonstrating an incident
 
@@ -400,37 +410,50 @@ real Slack integration above replaced it.
 
 The assignment brief requires **both** the Marker and the Unit Chair to
 be able to view the codebase, even though the provided answer-sheet
-template only mentions the "marking tutor". Making this repository
-public satisfies both by default (no invite needed). If you keep it
-private instead, add both the Marker's and the Unit Chair's GitHub
-usernames as collaborators (Settings > Collaborators) -- this cannot be
-completed by an assistant without those usernames, and must be checked
-off by hand before submission.
+template only mentions the "marking tutor". This repository is public
+and anonymous read access was verified directly (an unauthenticated
+request to both the repository page and a raw file returned HTTP 200),
+so both roles can view it without needing an individual invite. If you
+ever switch it to private, add both the Marker's and the Unit Chair's
+GitHub usernames as collaborators (Settings > Collaborators) -- this
+cannot be completed by an assistant without those usernames, and must
+be checked off by hand before submission.
 
 ## 13. Handover: what's done, what's pending
 
-**Done and verified end-to-end, this build (Jenkins #19, commit `4323a72`):**
-- All 7 required stages pass: Build, Test, Code Quality, Security,
-  Deploy, Release, Monitoring (see section 7.1 for the security
-  findings, and the screenshot in the answer sheet for the Stage View).
-- 78 unit and integration tests pass, 98% coverage.
+**Done and verified:**
+- All 7 required stages pass on this repository -- see "Tested Jenkins
+  build" below for the exact build number, commit, and evidence
+  location once the pipeline has run here.
+- 78 unit and integration tests pass, 98% coverage (re-confirmed
+  locally: `pytest tests/unit tests/integration --cov=app`).
+- The security gate's actual policy (HIGH-severity/MEDIUM-or-higher-
+  confidence Bandit findings, and pip-audit findings with an available
+  fix) is verified against the code itself, not assumed -- see
+  section 7.1.
 - Rollback correctly preserves the last known-good release instead of
-  overwriting it when recovering the same version -- verified both with
-  a focused regression test (`tests/scripts/test_release_metadata.ps1`)
-  and a real deploy-release-incident-recover-rollback sequence against
-  the actual production environment.
+  overwriting it when recovering the same version -- re-confirmed with
+  the regression test (`tests/scripts/test_release_metadata.ps1`, 9/9
+  assertions pass) and, earlier, a real
+  deploy-release-incident-recover-rollback sequence against the actual
+  production environment.
 - The Monitoring stage's incident check always attempts recovery, even
   if the check itself fails partway through, and still fails the build
-  if verification failed even though recovery succeeded -- verified with
-  both a clean run and a deliberately broken one.
-- The Security and Code Quality gates now fail on an incomplete or
-  failed scan (a crashed tool, an empty report, or an error inside the
-  scanner's own output), not only on an actual finding -- this was a
-  real bug in the gates themselves, found during this review, fixed,
-  and covered by 30 new unit tests.
+  if verification failed even though recovery succeeded -- re-confirmed
+  with a fresh clean run and a fresh deliberately-broken run (production
+  was stopped, the alert-name check was made to fail on purpose,
+  recovery still restored production to its running version, and the
+  final result still reported FAILED).
 - Alertmanager is wired to a real Slack receiver (`slack_configs`, not a
   generic webhook), alongside the local inbox the automated Jenkins
-  check always relies on -- see section 5.1.
+  check always relies on -- see section 5.1. Real delivery to Slack
+  itself is still pending, see item 1 below.
+- Marker/Unit Chair access -- see section 12; the repository is public
+  and anonymous read access is verified.
+
+**Tested Jenkins build:** [PENDING -- filled in after the pipeline runs
+against this repository's current commit; see the answer sheet
+screenshot for the Stage View evidence]
 
 **Pending -- needs your input, not something an assistant can complete:**
 1. **A real Slack webhook URL.** `monitoring/secrets/slack_webhook_url.txt`
@@ -447,11 +470,7 @@ off by hand before submission.
    confirm it plays without your personal login.
 3. **Inserting the real video link** into answer-sheet item 1 (currently
    `[PENDING - VIDEO LINK]`), then re-exporting the DOCX to PDF.
-4. **Confirming Marker and Unit Chair access by hand** -- see section 12;
-   making the repository public satisfies this by default with no invite
-   needed; if you keep it private instead, add both usernames as
-   collaborators.
 
-Until items 1-4 above are done, this package is not submission-ready,
+Until items 1-3 above are done, this package is not submission-ready,
 even though the pipeline and codebase themselves are complete and
 verified.
